@@ -4,13 +4,13 @@ A gRPC-based Dapr service for inspecting, protecting, and unprotecting files usi
 
 ## Overview
 
-AIP File Protection Service is a microservice that provides a simple, reliable interface to the Microsoft Information Protection (MIP) SDK. It leverages Dapr for service discovery, invocation, and metrics collection, and exposes gRPC endpoints for file protection operations.
+AIP File Protection Service is a microservice that provides a simple, reliable interface to the [Microsoft Information Protection (MIP) SDK](https://learn.microsoft.com/en-us/information-protection/develop/setup-configure-mip). It leverages [Dapr](https://dapr.io/) for service discovery, invocation, and metrics collection, and exposes gRPC endpoints for file protection operations.
 
 The service is designed to be deployable in Kubernetes or any containerized environment that supports Dapr.
 
 The app support moniring via:
-- Prometheus metrics
-- Sentry traces / error reporting
+- [Prometheus metrics](https://prometheus.io/)
+- [Sentry traces / error reporting](https://sentry.io/welcome/)
 
 ## Features
 
