@@ -200,10 +200,10 @@ spec:
 
 The service exposes Prometheus metrics on the configured PROMETHEUS_PORT including:
 
-**Request Counts**: Total number of requests by method and status
-**Request Latency**: Histogram of request processing times
-**Active Requests**: Gauge of currently processing requests
-**External Function Calls**: Counts and latencies of calls to the MIP SDK
+- **Request Counts**: Total number of requests by method and status
+- **Request Latency**: Histogram of request processing times
+- **Active Requests**: Gauge of currently processing requests
+- **External Function Calls**: Counts and latencies of calls to the MIP SDK
 
 ## Scaling
 The service is designed to be horizontally scalable. The main considerations for scaling are:
