@@ -1,6 +1,4 @@
 # AIP File Protection Service
-[![Build Status](https://dev.azure.com/ncryptedcloud/ncc-web/_apis/build/status%2Fmsip_file_operations?repoName=msip_file_operations&branchName=main)](https://dev.azure.com/ncryptedcloud/ncc-web/_build/latest?definitionId=78&repoName=msip_file_operations&branchName=main)
-
 
 A gRPC-based Dapr service for inspecting, protecting, and unprotecting files using Microsoft Information Protection.
 
