@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "loggers": {
+    "root": {
+      "level": "INFO",
+      "handlers": ["consoleHandler"]
+    },
+    "policy_engine_debug": {
+      "level": "DEBUG",
+      "handlers": ["consoleHandler"],
+      "propagate": false
+    }
+  },
+  "formatters": {
+    "normalFormatter": {
+      "format": "%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d]  %(message)s"
+    },
+    "detailedFormatter": {
+      "format": "%(asctime)s loglevel=%(levelname)-6s %(funcName)s() [Line: %(lineno)-4d %(message)s  call_trace=%(pathname)s L%(lineno)-4d"
+    }
+  },
+  "handlers": {
+    "consoleHandler": {
+      "class": "logging.StreamHandler",
+      "level": "INFO",
+      "filters": [],
+      "formatter": "normalFormatter",
+      "stream": "ext://sys.stdout"
+    },
+    "detailedConsoleHandler": {
+      "class": "logging.StreamHandler",
+      "level": "INFO",
+      "filters": [],
+      "formatter": "detailedFormatter",
+      "stream": "ext://sys.stdout"
+    },
+    "debugPolicyEngineHandler": {
+      "class": "logging.StreamHandler",
+      "level": "DEBUG",
+      "filters": [],
+      "formatter": "detailedFormatter",
+      "stream": "ext://sys.stdout"
+    }
+  }
+
+}

@@ -1,0 +1,34 @@
+services:
+  app:
+    image: msip
+    command: sleep infinity
+    volumes:
+      - ../app:/app/app
+      - ../../ncc-web/var/cache/decrypted_files/:/ncc/var/cache/decrypted_files
+    platform: linux/amd64
+    # metrics port
+    ports:
+      - 8000:8000
+    networks:
+      - msip-network
+      - dapr-network
+
+  msip-dapr:
+    image: daprio/daprd:latest
+    command: [ "./daprd",
+      "-app-id", "msip-service",
+      "-app-port", "50051",
+      "-app-protocol", "grpc",
+      "-dapr-grpc-port", "50001",
+      "-dapr-http-port", "3500"
+    ]
+    depends_on:
+      - app   
+    restart: always
+    network_mode: "service:app"
+  
+networks:
+  msip-network:
+    driver: bridge
+  dapr-network:
+    external: true

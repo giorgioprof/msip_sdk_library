@@ -1,0 +1,82 @@
+import os
+import SCons
+
+Import("""
+    env
+    bins
+    crypto_lib_dir
+    crypto_libs
+    is_file_sdk_enabled
+    is_protection_sdk_enabled
+    is_upe_sdk_enabled
+    samples_dir
+""")
+
+def get_lib_names_for_linux(core_lib, protection_lib, file_lib, upe_lib):
+    linux_core_lib = core_lib
+    if type(core_lib) is SCons.Node.NodeList:
+        linux_core_lib = [os.path.basename(core_lib[0].get_path())]
+    linux_protection_lib = protection_lib
+    if type(protection_lib) is SCons.Node.NodeList:
+        linux_protection_lib = [os.path.basename(protection_lib[0].get_path())]
+    linux_file_lib = file_lib
+    if type(file_lib) is SCons.Node.NodeList:
+        linux_file_lib = [os.path.basename(file_lib[0].get_path())]
+    linux_upe_lib = upe_lib
+    if type(upe_lib) is SCons.Node.NodeList:
+        linux_upe_lib = [os.path.basename(upe_lib[0].get_path())]
+    return linux_core_lib, linux_protection_lib, linux_file_lib, linux_upe_lib
+
+sample_source = [
+    samples_dir + '/SConscript',
+    samples_dir + '/SConstruct'
+]
+
+[common_sample_lib, common_sample_source] = env.SConscript('common/SConscript', duplicate=0)
+Export('common_sample_lib')
+
+[consent_sample_lib, consent_sample_source] = env.SConscript('consent/SConscript', duplicate=0)
+Export('consent_sample_lib')
+
+upe_sample_source = upe_cc_sample_source = file_sample_source = protection_sample_source = protection_cc_sample_source = None
+upe_sample_bin = upe_cc_sample_bin = file_sample_bin = protection_sample_bin = protection_cc_sample_bin = None
+protection_sample_lib_file = ''
+
+if is_upe_sdk_enabled:
+    if File('upe/SConscript').srcnode().exists():
+        [upe_sample_bin, upe_sample_source] = env.SConscript('upe/SConscript', duplicate=0, exports='get_lib_names_for_linux')
+        Install(bins, upe_sample_bin)
+
+    if File('upe_cc/SConscript').srcnode().exists():
+        [upe_cc_sample_bin, upe_cc_sample_source] = env.SConscript('upe_cc/SConscript', duplicate=0, exports='get_lib_names_for_linux')
+        Install(bins, upe_cc_sample_bin)
+
+if is_file_sdk_enabled:
+    if File('file/SConscript').srcnode().exists():
+        [file_sample_bin, file_sample_source] = env.SConscript('file/SConscript', duplicate=0, exports='get_lib_names_for_linux')        
+        Install(bins, file_sample_bin)
+
+if is_protection_sdk_enabled:
+    if File('protection/SConscript').srcnode().exists():
+        [protection_sample_bin, protection_sample_source, protection_sample_lib_file] = env.SConscript('protection/SConscript', duplicate=0, exports='get_lib_names_for_linux')
+        Install(bins, protection_sample_bin)
+
+    if File('protection_cc/SConscript').srcnode().exists():
+        [protection_cc_sample_bin, protection_cc_sample_source] = env.SConscript('protection_cc/SConscript', duplicate=0, exports='get_lib_names_for_linux')
+        Install(bins, protection_cc_sample_bin)
+
+Return(
+    'file_sample_bin',
+    'protection_sample_bin',
+    'protection_cc_sample_bin',
+    'upe_sample_bin',
+    'upe_cc_sample_bin',
+    'sample_source',
+    'common_sample_source',
+    'consent_sample_source',
+    'file_sample_source',
+    'protection_sample_source',
+    'protection_cc_sample_source',
+    'upe_sample_source',
+    'upe_cc_sample_source',
+    'protection_sample_lib_file')

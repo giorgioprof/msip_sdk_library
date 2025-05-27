@@ -1,0 +1,10 @@
+[paths]
+source =
+    app/
+
+[run]
+omit =
+    */app/tests/*
+    */app/metrics/*
+    */.pyenv/*
+    */app/entrypoint.py

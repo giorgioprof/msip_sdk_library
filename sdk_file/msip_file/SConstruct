@@ -1,0 +1,278 @@
+#!python
+import sys
+import distro
+import os
+from os.path import expanduser
+
+sys.path.append(os.path.join(sys.path[0], '..', '..', 'build'))
+
+def IsRHEL7():
+    linux_distro = "".join(distro.linux_distribution()[:2]).replace('.', '').lower()
+    return linux_distro.startswith('centos linux7') or linux_distro.startswith('red hat enterprise linux server7')
+
+Help("""
+Run 'scons arch=ARCHITECTURE configuration=CONFIGURATION' to build.
+    'scons --arch=ARCHTITECTURE to specify architecture. Choose from ['x86', 'x64', 'arm64']. (Default: 'x64')
+    'scons --configuration=CONFIGURATION' to specify configuration. Choose from ['debug','release']. (Default: 'debug')
+    'scons --msvc=version' to specify 14.0 or 14.1 version default 14.
+    'scons --static' to build from static MIP libs.
+""")
+
+#
+# Architecture/platform (default: x64)
+
+AddOption(
+    '--arch',
+    choices=['x86', 'x64', 'arm64'],
+    help='Architecture: [x86, x64, arm64]',
+    default='x64')
+
+#
+# Configuration/flavor (default: debug)
+
+AddOption(
+    '--configuration',
+    choices=['debug','release'],
+    help='Configuration: [debug, release]',
+    default='release')
+AddOption(
+    '--msvc',
+    type='string',
+    action='store',
+    help='Archs used to in packaged aar, must be used with android build',
+    default="14.0")
+
+build_arch = GetOption('arch')
+build_flavor = GetOption('configuration')
+msvc = GetOption('msvc')
+file_samples = True
+
+platform = sys.platform
+if platform == 'linux':
+    platform = 'linux2'
+
+if platform == 'linux2':
+    if build_arch == 'x86':
+        target_arch = 'i386'
+    elif build_arch == 'x64':
+        target_arch = 'x86_64'
+elif platform == 'win32':
+    if build_arch == 'x64':
+        target_arch = 'amd64'
+    else:
+        target_arch = build_arch
+elif platform == 'darwin':
+    if build_arch == 'x86':
+        osx_version_flag = ' -mmacosx-version-min=10.10'
+        target_arch = 'i386'
+    elif build_arch == 'x64':
+        osx_version_flag = ' -mmacosx-version-min=10.10'
+        target_arch = 'x86_64'
+    elif build_arch == 'arm64':
+        osx_version_flag = ' -mmacosx-version-min=11.10'
+        target_arch = 'arm64'
+
+CXXFLAGS_BASE = '-DELPP_THREAD_SAFE'
+
+if platform == 'linux2':
+    CXXFLAGS = CXXFLAGS_BASE + ' -std=gnu++11 -D_REENTRANT -fPIC'
+    if build_flavor == 'debug':
+        CXXFLAGS = CXXFLAGS + ' -g -DDBG_ENABLED -DDEBUG -D_DEBUG'
+    else:
+        CXXFLAGS = CXXFLAGS + ' -O2 -DNDEBUG -DNDEBUG'
+    LINKFLAGS = ''
+elif platform == 'win32':
+    CXXFLAGS = CXXFLAGS_BASE + ' -FS -W3 -w34100 -w44251 -GR -EHsc -DUNICODE /Qspectre'
+    LINKFLAGS = ' /DEBUG'
+    if build_arch == 'x86':
+        CXXFLAGS = CXXFLAGS + ' -DWIN32'
+    else:
+        CXXFLAGS = CXXFLAGS + ' -DWIN64'
+    if build_flavor == 'debug':
+        CXXFLAGS = CXXFLAGS + ' -c -MDd -DDEBUG -D_DEBUG'
+    else:
+        CXXFLAGS = CXXFLAGS + ' -c -O2 -MD -DNDEBUG -DNDEBUG'
+elif platform == 'darwin':
+    from build_config_osx import *
+    sysroot_flag = ' -isysroot {0}'.format(getMacOSXSdkRoot(target_arch))
+    if target_arch == 'arm64':
+        arch_flag = ' -arch arm64'
+    else:
+        arch_flag = ' -arch x86_64'
+    CXXFLAGS = CXXFLAGS_BASE + osx_version_flag + ' -std=c++11 -stdlib=libc++' + sysroot_flag + arch_flag
+    LINKFLAGS = osx_version_flag + ' -framework CoreServices' + sysroot_flag + arch_flag
+    if build_flavor == 'debug':
+        CXXFLAGS = CXXFLAGS + ' -DDEBUG -D_DEBUG -DDBG_ENABLED -g'
+    else:
+        CXXFLAGS = CXXFLAGS + ' -DNDEBUG -D_NDEBUG -O1'
+
+build_args = {
+    "MSVC_VERSION": msvc,
+    "MSVC_SCRIPT_ARGS":' -vcvars_spectre_libs=spectre',
+    "MSVC_SPECTRE": '1',
+    "TARGET_ARCH": target_arch
+}
+
+#
+# Additional variables required by constituent SConscripts
+
+protection_supported_platforms = [ 'win32', 'linux2', 'darwin', 'android', 'iPhoneOS', 'iPhoneSimulator' ]
+file_supported_platforms = [ 'win32', 'linux2', 'darwin' ]
+mobile_platforms = [ 'android', 'iPhoneOS', 'iPhoneSimulator' ]
+is_file_sdk_enabled = platform in file_supported_platforms
+is_upe_sdk_enabled = True
+is_protection_sdk_enabled = platform in protection_supported_platforms
+
+env = Environment(**build_args)
+env.Append(CXXFLAGS=Split(CXXFLAGS))
+env.Append(LINKFLAGS=Split(LINKFLAGS))
+
+# Currently disabled offline publishing support in android and ios scripts
+if not platform in mobile_platforms:
+    env.Append(CPPDEFINES=['MIP_OFFLINE_PUBLISHING_ENABLED'])
+# Will set the default for non-mobile platforms to have offline publishing enabled
+env.Append(CPPDEFINES=['MIP_OFFLINE_PUBLISHING_CONFIGURED'])
+
+if platform == 'linux2' and IsRHEL7():
+    env.Replace(CXX = "/opt/rh/devtoolset-7/root/usr/bin/c++")
+    env.Replace(CC = "/opt/rh/devtoolset-7/root/usr/bin/gcc")
+    env.Replace(CPP = "/opt/rh/devtoolset-7/root/usr/bin/cpp")
+
+samples_path = env.GetLaunchDir()
+api_includes_dir = samples_path.replace('msip_file', 'include')
+bins = samples_path.replace('msip_file', 'bins' + '/' + build_flavor +'/' + target_arch)
+
+# Check if MIP libs have been built with a version-specific suffix
+ignored_suffixes = ['_static', '_nostrip']
+core_lib_actual = next(f for f in os.listdir(bins) if 'mip_core' in f and not any(suffix in f for suffix in ignored_suffixes))
+lib_suffix = core_lib_actual[core_lib_actual.find('mip_core') + len('mip_core') : core_lib_actual.rfind('.')]
+
+file_lib = 'mip_file_sdk' + lib_suffix
+file_lib_static = 'mip_file_sdk_static'
+protection_lib = 'mip_protection_sdk' + lib_suffix
+protection_lib_static = 'mip_protection_sdk_static'
+upe_lib = 'mip_upe_sdk' + lib_suffix
+upe_lib_static = 'mip_upe_sdk_static'
+core_lib = 'mip_core' + lib_suffix
+unified_lib = 'mip_unified' + lib_suffix
+
+# Win32 expects pairs: [0] is DLL; [1] is lib name
+if platform == 'win32':
+    file_lib = [file_lib + '.dll', file_lib]
+    protection_lib = [protection_lib + '.dll', protection_lib]
+    upe_lib = [upe_lib + '.dll', upe_lib]
+    core_lib = [core_lib + '.dll', core_lib]
+    unified_lib = [unified_lib + '.dll', unified_lib]
+
+#---------------------------------------------------------------
+# crypto configuration
+#---------------------------------------------------------------
+crypto_lib_dir = bins
+crypto_configs = []
+if platform == 'win32':
+    crypto_libs = ['libcrypto', 'libssl', 'Advapi32', 'Gdi32', 'User32', 'ncrypt']
+elif platform == 'linux2':
+    crypto_lib_dir = '/usr/mip/lib'
+    crypto_libs = []
+else:
+    crypto_libs = ['ssl', 'crypto']
+Export('crypto_configs')
+
+#---------------------------------------------------------------
+# dns configuration
+#---------------------------------------------------------------
+if platform == 'win32':
+    dns_lib = 'DnsAPI'
+else:
+    dns_lib = 'resolv'
+
+#---------------------------------------------------------------
+# libxml2 configuration
+#---------------------------------------------------------------
+libxml2_lib_dir = bins
+if platform == 'win32':
+    libxml2_libs = ['libxml2']
+else:
+    libxml2_libs = ['xml2', 'pthread']
+
+#---------------------------------------------------------------
+# 1DS configuration
+#---------------------------------------------------------------
+oneds_libs = []
+if platform == 'win32':
+    oneds_libs = ['mip_ClientTelemetry' + lib_suffix]
+elif platform == 'darwin':
+    oneds_libs = ['mat', 'curl', 'z']
+elif platform == 'linux2':
+    oneds_libs = ['mat', 'curl']
+
+#---------------------------------------------------------------
+# XMP configuration
+#---------------------------------------------------------------
+xmp_lib_dir = bins
+xmp_libs = ['XMPCoreStatic', 'XMPFilesStatic']
+
+#---------------------------------------------------------------
+# libgsf configuration
+#---------------------------------------------------------------
+libgsf_lib_dir = bins
+libgsf_libs = []
+if platform == 'win32':
+    libgsf_libs = ['libgsf-1-114', 'zlib1', 'libgobject-2.0-0', 'libglib-2.0-0', 'libbz2-1']
+elif platform == 'darwin':
+    libgsf_libs = ['libbz2.dylib', 'gsf-1', 'gobject-2.0', 'glib-2.0', 'intl', 'gio-2.0', 'gmodule-2.0', 'pcre', 'iconv']
+elif platform == 'linux2':
+    libgsf_libs = ['glib-2.0']
+
+#---------------------------------------------------------------
+# sqlite configuration
+#---------------------------------------------------------------
+sqlite3_lib_dir = bins
+sqlite3_libs = ['sqlite3']
+if platform == 'linux2':
+    sqlite3_libs += ['dl']
+
+wrappers = False
+resources_sample = []
+samples_dir = '#'
+
+
+Export("""
+    api_includes_dir
+    bins
+    env
+    core_lib
+    crypto_lib_dir
+    crypto_libs
+    dns_lib
+    file_lib
+    file_lib_static
+    file_samples
+    libgsf_lib_dir
+    libgsf_libs
+    libxml2_libs
+    libxml2_lib_dir
+    is_file_sdk_enabled
+    is_protection_sdk_enabled
+    is_upe_sdk_enabled
+    oneds_libs
+    platform
+    protection_lib
+    protection_lib_static
+    resources_sample
+    samples_dir
+    sqlite3_libs
+    sqlite3_lib_dir
+    target_arch
+    upe_lib
+    upe_lib_static
+    unified_lib
+    wrappers
+    xmp_lib_dir
+    xmp_libs
+""")
+
+if platform == 'linux2':
+    env.Append(CXXFLAGS=Split('-std=gnu++11 -D_REENTRANT'))
+
+env.SConscript('SConscript', variant_dir=bins, duplicate=0)
