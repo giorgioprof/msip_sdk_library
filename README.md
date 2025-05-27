@@ -8,6 +8,10 @@ AIP File Protection Service is a microservice that provides a simple, reliable i
 
 The service is designed to be deployable in Kubernetes or any containerized environment that supports Dapr.
 
+The app support moniring via:
+- Prometheus metrics
+- Sentry traces / error reporting
+
 ## Features
 
 - **File Inspection**: Examine files to determine protection status
